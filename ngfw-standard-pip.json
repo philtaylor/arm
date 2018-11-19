@@ -1,0 +1,319 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2018-05-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0",
+    "parameters": {
+        "Availability Set Name": {
+            "defaultValue": "",
+            "type": "String",
+            "metadata": {
+                "description": "Availability Set for the Palo Alto Networks firewalls."
+            }
+        },
+        "Firewall Name": {
+            "defaultValue": "",
+            "type": "String",
+            "metadata": {
+                "description": "Name of the Palo Alto Networks firewall instance."
+            }
+        },
+        "Instance Size": {
+            "defaultValue": "Standard_D3_v2",
+            "allowedValues": [
+                "Standard_D3_v2",
+                "Standard_D4_v2",
+                "Standard_D5_v2"
+            ],
+            "type": "String",
+            "metadata": {
+                "description": "Size of the Azure Virtual Machine instance."
+            }
+        },
+        "License Type": {
+            "defaultValue": "",
+            "allowedValues": [
+                "byol",
+                "bundle1",
+                "bundle2"
+            ],
+            "type": "String",
+            "metadata": {
+                "description": "Palo Alto Networks license type."
+            }
+        },
+        "Admin Username": {
+            "defaultValue": "",
+            "type": "String",
+            "metadata": {
+                "description": "Administrators Username for management of the Palo Alto Networks firewall."
+            }
+        },
+        "Admin Password": {
+            "defaultValue": "",
+            "type": "SecureString",
+            "metadata": {
+                "description": "Administrator Password for management of the Palo Alto Networks firewall."
+            }
+        },
+        "Virtual Network Name": {
+            "defaultValue": "",
+            "type": "String",
+            "metadata": {
+                "description": "Virtual Network Name of the Virtual Network for the Palo Alto Networks firewalls to be deployed into."
+            }
+        },
+        "Subnet Name (Management)": {
+            "defaultValue": "",
+            "type": "String",
+            "metadata": {
+                "description": "Subnet Name for the Management interface."
+            }
+        },
+        "Subnet Name (Untrust)": {
+            "defaultValue": "",
+            "type": "String",
+            "metadata": {
+                "description": "Subnet Name for the Untrust interface."
+            }
+        },
+        "Subnet Name (Trust)": {
+            "defaultValue": "",
+            "type": "String",
+            "metadata": {
+                "description": "Subnet Name for the Trust interface."
+            }
+        },
+        "NIC IP (Management)": {
+            "defaultValue": "",
+            "type": "String",
+            "metadata": {
+                "description": "IP Address for the Management interface."
+            }
+        },
+        "NIC IP (Untrust)": {
+            "defaultValue": "",
+            "type": "String",
+            "metadata": {
+                "description": "IP Address for the Untrust interface."
+            }
+        },
+        "NIC IP (Trust)": {
+            "defaultValue": "",
+            "type": "String",
+            "metadata": {
+                "description": "IP Address for the Trust interface."
+            }
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Network/publicIPAddresses",
+            "sku": {
+                "name": "Standard"
+            },
+            "name": "[concat('publicip-', parameters('Firewall Name'), '-management')]",
+            "apiVersion": "2017-08-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "publicIPAllocationMethod": "Static",
+                "idleTimeoutInMinutes": 4,
+                "dnsSettings": {
+                    "domainNameLabel": "[concat('publicip-', parameters('Firewall Name'), '-management')]"
+                }
+            },
+            "dependsOn": []
+        },
+        {
+            "type": "Microsoft.Network/publicIPAddresses",
+            "sku": {
+                "name": "Standard"
+            },
+            "name": "[concat('publicip-', parameters('Firewall Name'), '-untrust')]",
+            "apiVersion": "2017-08-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "publicIPAllocationMethod": "Static",
+                "idleTimeoutInMinutes": 4,
+                "dnsSettings": {
+                    "domainNameLabel": "[concat('publicip-', parameters('Firewall Name'), '-untrust')]"
+                }
+            },
+            "dependsOn": []
+        },
+        {
+            "type": "Microsoft.Compute/availabilitySets",
+            "sku": {
+                "name": "Aligned"
+            },
+            "name": "[parameters('Availability Set Name')]",
+            "apiVersion": "2016-04-30-preview",
+            "location": "[resourceGroup().location]",
+            "tags": {},
+            "properties": {
+                "platformUpdateDomainCount": 5,
+                "platformFaultDomainCount": 2
+            },
+            "dependsOn": []
+        },
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[concat('nic-', parameters('Firewall Name'), '-management')]",
+            "apiVersion": "2017-03-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "[concat('nic-', parameters('Firewall Name'), '-management-ipconfig')]",
+                        "properties": {
+                            "privateIPAddress": "[parameters('NIC IP (Management)')]",
+                            "privateIPAllocationMethod": "Static",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat('publicip-', parameters('Firewall Name'), '-management'))]"
+                            },
+                            "subnet": {
+                                "id": "[concat(resourceId('Microsoft.Network/virtualNetworks', parameters('Virtual Network Name')), '/subnets/', parameters('Subnet Name (Management)'))]"
+                            }
+                        }
+                    }
+                ],
+                "dnsSettings": {
+                    "dnsServers": []
+                },
+                "enableIPForwarding": true
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', concat('publicip-', parameters('Firewall Name'), '-management'))]"
+            ]
+        },
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[concat('nic-', parameters('Firewall Name'), '-untrust')]",
+            "apiVersion": "2017-03-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "[concat('nic-', parameters('Firewall Name'), '-untrust-ipconfig')]",
+                        "properties": {
+                            "privateIPAddress": "[parameters('NIC IP (Untrust)')]",
+                            "privateIPAllocationMethod": "Static",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat('publicip-', parameters('Firewall Name'), '-untrust'))]"
+                            },
+                            "subnet": {
+                                "id": "[concat(resourceId('Microsoft.Network/virtualNetworks', parameters('Virtual Network Name')), '/subnets/', parameters('Subnet Name (Untrust)'))]"
+                            }
+                        }
+                    }
+                ],
+                "dnsSettings": {
+                    "dnsServers": []
+                },
+                "enableIPForwarding": true
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', concat('publicip-', parameters('Firewall Name'), '-untrust'))]"
+            ]
+        },
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[concat('nic-', parameters('Firewall Name'), '-trust')]",
+            "apiVersion": "2017-03-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "[concat('nic-', parameters('Firewall Name'), '-trust-ipconfig')]",
+                        "properties": {
+                            "privateIPAddress": "[parameters('NIC IP (Trust)')]",
+                            "privateIPAllocationMethod": "Static",
+                            "subnet": {
+                                "id": "[concat(resourceId('Microsoft.Network/virtualNetworks', parameters('Virtual Network Name')), '/subnets/', parameters('Subnet Name (Trust)'))]"
+                            }
+                        }
+                    }
+                ],
+                "dnsSettings": {
+                    "dnsServers": []
+                },
+                "enableIPForwarding": true
+            },
+            "dependsOn": []
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachines",
+            "name": "[parameters('Firewall Name')]",
+            "apiVersion": "2016-04-30-preview",
+            "location": "[resourceGroup().location]",
+            "plan": {
+                "name": "[parameters('License Type')]",
+                "product": "vmseries1",
+                "publisher": "paloaltonetworks"
+            },
+            "tags": {},
+            "properties": {
+                "availabilitySet": {
+                    "id": "[resourceId('Microsoft.Compute/availabilitySets', parameters('Availability Set Name'))]"
+                },
+                "hardwareProfile": {
+                    "vmSize": "[parameters('Instance Size')]"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "paloaltonetworks",
+                        "offer": "vmseries1",
+                        "sku": "[parameters('License Type')]",
+                        "version": "8.0.0"
+                    },
+                    "osDisk": {
+                        "osType": "Linux",
+                        "name": "[concat('disk-', parameters('Firewall Name'), '-system')]",
+                        "createOption": "FromImage",
+                        "caching": "ReadWrite"
+                    },
+                    "dataDisks": []
+                },
+                "osProfile": {
+                    "computerName": "[parameters('Firewall Name')]",
+                    "linuxConfiguration": {
+                        "disablePasswordAuthentication": false
+                    },
+                    "secrets": [],
+                    "adminUsername": "[parameters('Admin Username')]",
+                    "adminPassword": "[parameters('Admin Password')]"
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat('nic-', parameters('Firewall Name'), '-management'))]",
+                            "properties": {
+                                "primary": true
+                            }
+                        },
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat('nic-', parameters('Firewall Name'), '-untrust'))]",
+                            "properties": {
+                                "primary": false
+                            }
+                        },
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat('nic-', parameters('Firewall Name'), '-trust'))]",
+                            "properties": {
+                                "primary": false
+                            }
+                        }
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Compute/availabilitySets', parameters('Availability Set Name'))]",
+                "[resourceId('Microsoft.Network/publicIPAddresses', concat('publicip-', parameters('Firewall Name'), '-management'))]",
+                "[resourceId('Microsoft.Network/publicIPAddresses', concat('publicip-', parameters('Firewall Name'), '-untrust'))]",
+                "[resourceId('Microsoft.Network/networkInterfaces', concat('nic-', parameters('Firewall Name'), '-management'))]",
+                "[resourceId('Microsoft.Network/networkInterfaces', concat('nic-', parameters('Firewall Name'), '-untrust'))]",
+                "[resourceId('Microsoft.Network/networkInterfaces', concat('nic-', parameters('Firewall Name'), '-trust'))]"
+            ]
+        }
+    ],
+    "outputs": {}
+}
